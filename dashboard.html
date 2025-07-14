@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Red Dragon Dashboard</title>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background: #0e0e0e;
+      color: white;
+    }
+
+    .topbar {
+      background: #b71c1c;
+      padding: 10px 20px;
+      display: flex;
+      align-items: center;
+      font-size: 20px;
+    }
+    .topbar img {
+      width: 32px;
+      height: 32px;
+      margin-right: 10px;
+    }
+
+    .bottom-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: #1c1c1c;
+      display: flex;
+      justify-content: space-around;
+      padding: 12px 0;
+      border-top: 1px solid #333;
+      z-index: 10;
+    }
+    .bottom-bar div {
+      text-align: center;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    .slideshow-container {
+      position: relative;
+      width: 90%;
+      height: 310px;
+      overflow: hidden;
+      background: #1a1a1a;
+      border: 2px solid #b71c1c;
+      border-radius: 15px;
+      margin: 20px auto;
+      box-shadow: 0 0 10px #b71c1c55;
+    }
+    .slide {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      opacity: 0;
+      transition: opacity 1s ease-in-out;
+      border-radius: 15px;
+    }
+    .slide.active {
+      opacity: 1;
+    }
+
+    .events-section {
+      display: flex;
+      align-items: center;
+      background: #1a1a1a;
+      margin: 30px 20px;
+      padding: 20px;
+      border-radius: 12px;
+      cursor: pointer;
+      border: 1px solid #333;
+    }
+    .events-section img {
+      width: 200px;
+      height: 200px;
+      object-fit: cover;
+      border-radius: 12px;
+      margin-right: 20px;
+    }
+    .events-section p {
+      font-size: 18px;
+    }
+
+    .homework-section {
+      margin: 20px;
+    }
+
+    .homework-box {
+      background: #202020;
+      margin-bottom: 15px;
+      padding: 20px;
+      border-radius: 15px;
+      border: 1px solid #333;
+      display: flex;
+      align-items: center;
+      gap: 15px;
+    }
+
+    .homework-icon {
+      font-size: 30px;
+    }
+
+    .homework-text {
+      flex-grow: 1;
+    }
+
+    .homework-text h3 {
+      margin: 0;
+      font-size: 20px;
+    }
+
+    .homework-text p {
+      margin: 5px 0 0;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Bar -->
+  <div class="topbar">
+    <img src="https://cdn-icons-png.flaticon.com/512/616/616408.png" alt="Logo">
+    Red Dragon
+  </div>
+
+  <!-- Slideshow -->
+  <div class="slideshow-container" id="slideshow"></div>
+
+  <!-- Events -->
+  <h2 style="margin-left: 20px;">Events</h2>
+  <div class="events-section" id="eventBox">
+    <img id="eventImg" src="" alt="Event">
+    <p id="eventText">Loading...</p>
+  </div>
+
+  <!-- Homework Section -->
+  <h2 style="margin-left: 20px;">Homework</h2>
+  <div class="homework-section" id="homeworkContainer">
+    <p style="text-align:center;">Loading homework...</p>
+  </div>
+
+  <!-- Bottom Navigation -->
+  <div class="bottom-bar">
+    <div onclick="location.href='dashboard.html'">🏠<br>Home</div>
+    <div onclick="location.href='notes.html'">📄<br>Notes</div>
+    <div onclick="location.href='share.html'">📷<br>Share</div>
+    <div onclick="location.href='chat.html'">💬<br>Chat</div>
+    <div onclick="location.href='account.html'">👤<br>Account</div>
+  </div>
+
+ <!-- Replace your <script> section with this updated one -->
+<script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyChLr_2O-NX9vquAgCkuNFILQmiMKzrl7U",
+    authDomain: "red-dragon-bc77b.firebaseapp.com",
+    projectId: "red-dragon-bc77b",
+    storageBucket: "red-dragon-bc77b.appspot.com",
+    messagingSenderId: "757926824845",
+    appId: "1:757926824845:web:5a6f9c31a553a37cbe0bc4"
+  };
+
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
+
+  // Slideshow
+  const slideshowContainer = document.getElementById("slideshow");
+  let slides = [];
+  let slideIndex = 0;
+
+  db.collection("slideshow").get().then(snapshot => {
+    snapshot.forEach(doc => {
+      const url = doc.data().imageUrl;
+      if (url) {
+        const img = document.createElement("img");
+        img.src = url;
+        img.classList.add("slide");
+        slideshowContainer.appendChild(img);
+        slides.push(img);
+      }
+    });
+
+    if (slides.length > 0) {
+      slides[0].classList.add("active");
+      setInterval(() => {
+        slides[slideIndex].classList.remove("active");
+        slideIndex = (slideIndex + 1) % slides.length;
+        slides[slideIndex].classList.add("active");
+      }, 4000);
+    } else {
+      slideshowContainer.innerHTML = "<p style='padding:20px;text-align:center;'>No slideshow images found.</p>";
+    }
+  });
+
+  // Events
+  const eventBox = document.getElementById("eventBox");
+  const eventImg = document.getElementById("eventImg");
+  const eventText = document.getElementById("eventText");
+
+  db.collection("events").limit(1).get().then(snapshot => {
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      eventImg.src = data.imageUrl;
+      eventText.textContent = data.text;
+    });
+  });
+
+  eventBox.onclick = () => {
+    window.location.href = "events.html";
+  };
+
+  // Homework - Show one random document
+  const homeworkContainer = document.getElementById("homeworkContainer");
+
+  const subjectIcons = {
+    telugu: "📝",
+    hindi: "🔤",
+    english: "🇬🇧",
+    maths: "➗",
+    others: "📘",
+    science: "🔬",
+    biology: "🧬",
+    social: "🌍"
+  };
+
+  db.collection("homeworks").get().then(snapshot => {
+    homeworkContainer.innerHTML = ""; // Clear loader
+
+    const docs = snapshot.docs;
+    if (docs.length === 0) {
+      homeworkContainer.innerHTML = "<p style='text-align:center;'>No homework found.</p>";
+      return;
+    }
+
+    const randomDoc = docs[Math.floor(Math.random() * docs.length)];
+    const data = randomDoc.data();
+    const subject = (data.subject || "").toLowerCase();
+    const icon = subjectIcons[subject] || "📘";
+
+    const box = document.createElement("div");
+    box.className = "homework-box";
+    box.style.cursor = "pointer";
+    box.onclick = () => {
+      window.location.href = "homework.html";
+    };
+
+    box.innerHTML = `
+      <div class="homework-icon">${icon}</div>
+      <div class="homework-text">
+        <h3>${data.title || subject + " Homework"}</h3>
+        <p>${data.description || ""}</p>
+      </div>
+    `;
+
+    homeworkContainer.appendChild(box);
+  });
+</script>
+</body>
+</html>

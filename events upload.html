@@ -1,0 +1,117 @@
+<!DOCTYPE html><html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Upload Events - Red Dragon</title>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background-color: #0e0e0e;
+      color: white;
+      padding-bottom: 60px;
+    }
+    .topbar {
+      background: #b71c1c;
+      padding: 15px;
+      font-size: 20px;
+      text-align: center;
+    }
+    .bottom-bar {
+      position: fixed;
+      bottom: 0;
+      width: 100%;
+      background: #1c1c1c;
+      display: flex;
+      justify-content: space-around;
+      padding: 10px 0;
+    }
+    .bottom-bar div {
+      color: white;
+      text-align: center;
+      font-size: 12px;
+    }
+    .container {
+      padding: 20px;
+    }
+    input, textarea {
+      display: block;
+      width: 100%;
+      margin-bottom: 10px;
+      padding: 10px;
+      border-radius: 6px;
+      border: none;
+      font-size: 16px;
+    }
+    button {
+      background-color: #b71c1c;
+      color: white;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 6px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #a11a1a;
+    }
+  </style>
+</head>
+<body>
+  <div class="topbar">Upload Events</div>
+  <div class="container">
+    <input type="text" id="title" placeholder="Event Title">
+    <textarea id="description" placeholder="Event Description"></textarea>
+    <input type="url" id="link" placeholder="Event URL (optional)">
+    <input type="text" id="imageUrl" placeholder="Image URL">
+    <button onclick="uploadEvent()">Upload Event</button>
+  </div>  <div class="bottom-bar">
+    <div onclick="location.href='dashboard.html'">🏠<br>Home</div>
+    <div onclick="location.href='event.html'">📅<br>Events</div>
+    <div onclick="location.href='eventupload.html'">➕<br>Upload</div>
+  </div>  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyChLr_2O-NX9vquAgCkuNFILQmiMKzrl7U",
+      authDomain: "red-dragon-bc77b.firebaseapp.com",
+      projectId: "red-dragon-bc77b",
+      storageBucket: "red-dragon-bc77b.appspot.com",
+      messagingSenderId: "757926824845",
+      appId: "1:757926824845:web:5a6f9c31a553a37cbe0bc4"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    function uploadEvent() {
+      const title = document.getElementById('title').value.trim();
+      const description = document.getElementById('description').value.trim();
+      const link = document.getElementById('link').value.trim();
+      const imageUrl = document.getElementById('imageUrl').value.trim();
+
+      if (!title || !description || !imageUrl) {
+        alert("Please fill all required fields.");
+        return;
+      }
+
+      db.collection("eventspage").add({
+        title,
+        description,
+        imageUrl,
+        link,
+        likes: 0,
+        dislikes: 0,
+        comments: []
+      }).then(() => {
+        alert("Event uploaded!");
+        document.getElementById('title').value = "";
+        document.getElementById('description').value = "";
+        document.getElementById('link').value = "";
+        document.getElementById('imageUrl').value = "";
+      }).catch(error => {
+        alert("Error uploading event: " + error);
+      });
+    }
+  </script></body>
+</html>

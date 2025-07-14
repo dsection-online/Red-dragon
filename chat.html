@@ -1,0 +1,314 @@
+<!DOCTYPE html><html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Red Dragon Chat</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #111;
+      color: white;
+    }
+    .topbar {
+      background: #c00;
+      color: white;
+      padding: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .topbar h1 {
+      margin: 0;
+    }
+    .topbar img {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+    }
+    .sidebar {
+      background: #222;
+      padding: 10px;
+      width: 200px;
+    }
+    .chat-container {
+      flex-grow: 1;
+      display: none;
+      flex-direction: column;
+      height: 100vh;
+    }
+    .chat-header {
+      background: #333;
+      padding: 10px;
+      font-weight: bold;
+    }
+    .chat-messages {
+      flex-grow: 1;
+      padding: 10px;
+      overflow-y: auto;
+    }
+    .chat-input {
+      display: flex;
+      padding: 10px;
+      gap: 5px;
+      background: #222;
+    }
+    .chat-input input[type="text"] {
+      flex-grow: 1;
+      padding: 5px;
+    }
+    .message-img {
+      max-width: 200px;
+      cursor: pointer;
+      border-radius: 10px;
+    }
+    .chat-bubble {
+      background: #444;
+      padding: 10px;
+      margin: 5px;
+      border-radius: 10px;
+      max-width: 70%;
+    }
+    .chat-bubble.other {
+      background: #666;
+      align-self: flex-start;
+    }
+    .img-preview {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0,0,0,0.9);
+      display: none;
+      justify-content: center;
+      align-items: center;
+    }
+    .img-preview img {
+      max-width: 90vw;
+      max-height: 90vh;
+    }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <h1>Red Dragon Chat</h1>
+    <img id="userProfile" src="" alt="Profile">
+  </div>  <!-- Login UI -->  <div id="loginOptions" style="text-align:center; margin-top:20px;">
+    <button id="googleLogin">Sign in with Google</button>
+    <br><br>
+    <input type="email" id="emailInput" placeholder="Email">
+    <input type="password" id="passwordInput" placeholder="Password">
+    <button id="emailLogin">Login with Email</button>
+  </div>  <div style="display: flex;" id="chatUI" hidden>
+    <div class="sidebar">
+      <button onclick="showUsers()">Add Friends</button>
+      <button onclick="createGroupChat()">Create Group</button>
+      <div id="friendsList"></div>
+      <h3>Chats</h3>
+      <div id="chatList"></div>
+    </div><div class="chat-container" id="chatContainer">
+  <div class="chat-header">
+    <span id="chatUser"></span>
+    <button onclick="closeChat()">Close</button>
+  </div>
+  <div class="typing" id="typingIndicator"></div>
+  <div class="chat-messages" id="chatMessages"></div>
+  <div class="chat-input">
+    <input type="text" id="messageInput" placeholder="Type a message..." oninput="sendTyping()">
+    <input type="file" id="imageInput">
+    <button onclick="sendMessage()">Send</button>
+  </div>
+</div>
+
+  </div>  <div class="img-preview" id="imgPreview" onclick="this.style.display='none'">
+    <img id="previewImg" src="" alt="Preview">
+  </div>  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+    import { getFirestore, doc, setDoc, getDoc, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import { getDatabase, ref, push, onChildAdded, update } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyChLr_2O-NX9vquAgCkuNFILQmiMKzrl7U",
+      authDomain: "red-dragon-bc77b.firebaseapp.com",
+      projectId: "red-dragon-bc77b",
+      storageBucket: "red-dragon-bc77b.appspot.com",
+      messagingSenderId: "757926824845",
+      appId: "1:757926824845:web:5a6f9c31a553a37cbe0bc4",
+      databaseURL: "https://red-dragon-bc77b-default-rtdb.asia-southeast1.firebasedatabase.app"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+    const rtdb = getDatabase(app);
+
+    let currentUser = null;
+    let currentChatId = "";
+
+    async function saveUserProfile(user) {
+      const profileRef = doc(db, "profile", user.uid);
+      const existing = await getDoc(profileRef);
+      if (!existing.exists()) {
+        await setDoc(profileRef, {
+          uid: user.uid,
+          name: user.displayName || user.email || "Anonymous",
+          profilePictureUrl: user.photoURL || ""
+        });
+      }
+    }
+
+    document.getElementById("googleLogin").onclick = async () => {
+      const provider = new GoogleAuthProvider();
+      try {
+        const result = await signInWithPopup(auth, provider);
+        currentUser = result.user;
+        await saveUserProfile(currentUser);
+        setupUI();
+      } catch (err) {
+        alert("Google sign-in failed: " + err.message);
+      }
+    };
+
+    document.getElementById("emailLogin").onclick = async () => {
+      const email = document.getElementById("emailInput").value;
+      const password = document.getElementById("passwordInput").value;
+      try {
+        const result = await signInWithEmailAndPassword(auth, email, password);
+        currentUser = result.user;
+        await saveUserProfile(currentUser);
+        setupUI();
+      } catch (err) {
+        alert("Email login failed: " + err.message);
+      }
+    };
+
+    onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        currentUser = user;
+        await saveUserProfile(user);
+        setupUI();
+      }
+    });
+
+    async function setupUI() {
+      document.getElementById("loginOptions").style.display = "none";
+      document.getElementById("chatUI").hidden = false;
+      const profileDoc = await getDoc(doc(db, "profile", currentUser.uid));
+      if (profileDoc.exists()) {
+        const data = profileDoc.data();
+        document.getElementById("userProfile").src = data.profilePictureUrl || "";
+      }
+      loadChatList();
+    }
+
+    function closeChat() {
+      document.getElementById("chatContainer").style.display = "none";
+      currentChatId = "";
+    }
+    window.closeChat = closeChat;
+
+    function sendTyping() {
+      // Optional: Typing indicator
+    }
+    window.sendTyping = sendTyping;
+
+    async function showUsers() {
+      const friendsList = document.getElementById("friendsList");
+      friendsList.innerHTML = "<p>Loading users...</p>";
+      const snapshot = await getDocs(collection(db, "profile"));
+      friendsList.innerHTML = "";
+      snapshot.forEach(docSnap => {
+        const data = docSnap.data();
+        const div = document.createElement("div");
+        div.className = "friend-item";
+        div.innerHTML = `
+          <span>
+            <img src="${data.profilePictureUrl || ''}" width="30" style="border-radius:50%; vertical-align:middle; margin-right: 10px;">
+            ${data.name || 'Unnamed'}
+          </span>
+          <button onclick="startChat('${docSnap.id}', '${data.name || 'Friend'}')">Chat</button>
+        `;
+        friendsList.appendChild(div);
+      });
+    }
+    window.showUsers = showUsers;
+
+    function sendMessage() {
+      const input = document.getElementById("messageInput");
+      const imageInput = document.getElementById("imageInput");
+      const chatRef = ref(rtdb, `chats/${currentChatId}`);
+      const timestamp = Date.now();
+
+      if (imageInput.files[0]) {
+        const reader = new FileReader();
+        reader.onload = () => {
+          push(chatRef, {
+            sender: currentUser.uid,
+            imageUrl: reader.result,
+            timestamp,
+            read: false
+          });
+        };
+        reader.readAsDataURL(imageInput.files[0]);
+      } else if (input.value.trim()) {
+        push(chatRef, {
+          sender: currentUser.uid,
+          text: input.value.trim(),
+          timestamp,
+          read: false
+        });
+      }
+      input.value = "";
+      imageInput.value = "";
+    }
+    window.sendMessage = sendMessage;
+
+    function startChat(uid, name) {
+      document.getElementById("chatUser").innerText = name;
+      document.getElementById("chatContainer").style.display = "flex";
+      document.getElementById("chatMessages").innerHTML = "";
+      document.getElementById("typingIndicator").textContent = "";
+      currentChatId = [currentUser.uid, uid].sort().join("_");
+      const chatRef = ref(rtdb, `chats/${currentChatId}`);
+
+      onChildAdded(chatRef, (snapshot) => {
+        const msg = snapshot.val();
+        const bubble = document.createElement("div");
+        const isMine = msg.sender === currentUser.uid;
+        bubble.className = "chat-bubble" + (isMine ? "" : " other");
+        bubble.innerHTML = msg.imageUrl
+          ? `<img src="${msg.imageUrl}" class="message-img" onclick="showPreview('${msg.imageUrl}')">`
+          : msg.text;
+        document.getElementById("chatMessages").appendChild(bubble);
+        update(snapshot.ref, { read: true });
+      });
+    }
+    window.startChat = startChat;
+
+    function showPreview(src) {
+      document.getElementById("previewImg").src = src;
+      document.getElementById("imgPreview").style.display = "flex";
+    }
+    window.showPreview = showPreview;
+
+    async function loadChatList() {
+      const chatList = document.getElementById("chatList");
+      chatList.innerHTML = "<p>Loading chats...</p>";
+      const snapshot = await getDocs(collection(db, "profile"));
+      chatList.innerHTML = "";
+      snapshot.forEach(docSnap => {
+        const data = docSnap.data();
+        const chatId = [currentUser.uid, docSnap.id].sort().join("_");
+        const div = document.createElement("div");
+        div.className = "friend-item";
+        div.innerHTML = `
+          <span>${data.name || 'Friend'}</span>
+          <button onclick="startChat('${docSnap.id}', '${data.name}')">Open</button>
+        `;
+        chatList.appendChild(div);
+      });
+    }
+  </script></body>
+</html>
