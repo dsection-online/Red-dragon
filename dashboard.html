@@ -208,7 +208,7 @@
   const eventImg = document.getElementById("eventImg");
   const eventText = document.getElementById("eventText");
 
-  db.collection("events").limit(1).get().then(snapshot => {
+  db.collection("eventspage").limit(1).get().then(snapshot => {
     snapshot.forEach(doc => {
       const data = doc.data();
       eventImg.src = data.imageUrl;
